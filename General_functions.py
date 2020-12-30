@@ -3,7 +3,7 @@
 """
 Created on Wed Dec 30 22:22:28 2020
 
-@author: Kimi Kreilgaard & Jonathan Steensgaard
+@author: Kimi Kreilgaard & Jonathan Steensgaard & Amalie Beate
 
 """
 
@@ -332,7 +332,96 @@ def poisson_trials(r, p, prob_r, guess = 1, plot=True):
     # If unsuccesful we probably need another guess
     else: print('A solution could not be obtained. Try another guess.')
     
+def cum(r, p, limit, trials, binom=False, poisson=False, plots=False):
+    
+    """
+    r = number of events 
+    p = probabillity of each event
+    limit = The lower limit of succes of r     
+    trials = bound with the test range
+    
+    Choose binomial or poisson distribution
+    """
+    # We set up a test array:
+    n_trials = np.arange(*trials, 1)
+    
+    # we check the first index:
+    n = n_trials[0]
 
+    if binom :
+        y = stats.binom.sf(r - 1, n, p)
+    if poisson:
+        y = stats.poisson.sf(r - 1, n*p)
+    
+    # If the first array isn't the correct one we test the others: 
+    while y < limit : 
+        n += 1 
+        
+        if binom :
+            y = stats.binom.sf(r - 1, n, p)
+        if poisson:
+            y = stats.poisson.sf(r - 1, n*p)
+    
+    # The previous loop stopped at n = the corret number, thereby we save: 
+    if y >= limit:
+        x = n 
+    
+    if plots :
+        
+        fig, ax = plt.subplots(figsize=(10, 8))
+        ax2 = fig.add_axes([0.4, 0.2, 0.4, 0.4]) # add_axes([x0, y0, width, height])
+        
+        # We set an array for a zoomed plot as well: 
+        zoom_x = np.linspace(x-5, x+5, 10)
+        
+        if binom :
+            yaxis = stats.binom.sf(r - 1, n_trials, p)
+            y_value = stats.binom.sf(r - 1, x, p)
+            zoom_y = stats.binom.sf(r - 1, zoom_x, p)
+            Title = 'Cumulative Binomial Function'
+            
+        if poisson :
+            yaxis = stats.poisson.sf(r - 1, n_trials*p)
+            y_value = stats.poisson.sf(r - 1, x*p)
+            zoom_y = stats.poisson.sf(r - 1, zoom_x*p)
+            Title = 'Cumulative Poisson Function'
+        
+        ax.scatter(x+0.5, y_value,s=100, c='k', marker='o', zorder=3)
+        ax.step(n_trials+0.5, yaxis, 'k')
+        ax.axvspan(0, x, color = 'r', alpha = 0.2)
+        ax.axvspan(x, len(n_trials), color = 'g', alpha = 0.2)
+        ax.set(title=Title, 
+               xlabel='Number of trials', 
+               ylabel='Total Probability',
+               xlim = [0, len(n_trials)]
+              )
+        
+        ax2.step(zoom_x+0.5, zoom_y, 'k')
+        ax2.axvspan(x-6, x, color = 'r', alpha = 0.5)
+        ax2.axvspan(x, x+6, color = 'g', alpha = 0.5)
+        ax2.scatter(x, y_value,s=100, c='k', marker='o', zorder=3)
+        ax2.set(title = 'Zoomed:', 
+               xlim = [x-5, x+5])
+            
+        # We remove the ticks:
+        ax2.tick_params(
+            axis='both', 
+            which='both', 
+            left = False, 
+            right = False, 
+            bottom = False,      
+            top = False,        
+            labelleft = False,
+            labelbottom = False)
+        
+        d = {'N:':   x,
+             'Limit:':  limit,
+            }
+        
+        text = nice_string_output(d, extra_spacing=2, decimals=2)
+        add_text_to_ax(0.02, 0.95, text, ax, fontsize=18)
+        
+    return x
 
 
 def chauvenet_iterative(data, crit = 1/2):
@@ -480,6 +569,73 @@ def Doanes_bins(data):
     
     return k
 
+
+def Chi2_Gauss(x_data, N, mu, sigma, N_bins, plot=False, title=False):
+    
+    """
+    IMPORTANT: It is not possible to give estimations for the Chi2 fit.  
+    INPUT:
+    x = x-data, array-like
+    N = number of experiments:
+    mu = mean
+    sigma = uncertainty of y-data, integer
+    plots = whether to plot (True or False)
+    title = title of plot in string: ex. 'title'
+    
+    """
+    def Gauss(x, N, mu, sigma) :
+        return N*binwidth * stats.norm.pdf(x, mu, sigma)
+    counts, bin_edges = np.histogram(x_data, bins=N_bins)
+    bin_centers = 0.5*(bin_edges[1:] + bin_edges[:-1])
+    bin_width = bin_edges[1]-bin_edges[0]
+    s_counts = np.sqrt(counts)
+    
+    x = bin_centers[counts>0]
+    y = counts[counts>0]
+    sy = s_counts[counts>0]
+    
+    chi2_gaussian = Chi2Regression(Gauss, x, y, sy)
+    minuit_gaussian = Minuit(chi2_gaussian, pedantic=False, N=N_bins, mu=mu, 
+                             sigma=sigma)
+    minuit_gaussian.migrad(); 
+    
+    print(minuit_gaussian.values['N'])
+    Chi2 = minuit_gaussian.fval
+    Ndof = len(x) - 3
+    p = stats.chi2.sf(Chi2, Ndof)  
+    
+    xmin = mu - 4*sigma
+    xmax = mu + 4*sigma
+    xaxis = np.linspace(xmin, xmax, 1000)
+    
+    if plot :
+        fig, ax = plt.subplots(figsize=(12, 8))
+        
+        ax.hist(x_data, bins=N_bins, color='r', alpha=0.3)
+        ax.hist(x_data, bins=N_bins, histtype='step', color='r')
+        ax.errorbar(x, y, yerr=sy, fmt='ko', ecolor='k', elinewidth=1, capsize=1, capthick=1, label='Measurements')
+        ax.plot(xaxis, Gauss(xaxis, *minuit_gaussian.args), color='k', linewidth=2)
+        
+        d = { 'Mean':   [minuit_gaussian.args[1],minuit_gaussian.args[2]],
+             'N':   minuit_gaussian.args[0],
+            'Chi2':     Chi2,
+            'Ndof':     Ndof,
+            'Prob':     p,
+            }
+
+        text = nice_string_output(d, extra_spacing=2, decimals=3)
+        add_text_to_ax(0.02, 0.95, text, ax, fontsize=18)
+        fig.suptitle(title, fontsize=25)
+
+    """
+    OUTPUT: 
+    Chi2 = Chi2 value
+    p = Probabillity of this fit or worse
+    minuit_fit.args = fitted value of Chi2
+    Plot of the function, along with the Chi2 fit
+    """
+    
+    return mean, sigma, Chi2, p
 
 
 def KS_plotter(data, fit_function, args=(), zoom=True):
@@ -688,6 +844,117 @@ def find_invF(fx_expr_no_C, C_val=None, xmin=-oo, all_sol = False ):
     
     return inverse_function
 
+def monte_c(expr, N_points, N_bins, xmini, xmaxi, ymini, ymaxi, plot = False, title=False):
+    
+    """
+    expr = defined function 
+    N_points = number of random numbers
+    N_bins = number of bins
+    
+    Define the box:
+    
+    xmin = xmin for the box, often: 0
+    xmax = xmax for the box, often: C found from the find_C function 
+    ymin = ymin for the box, often: 0
+    ymax = ymax for the box, often: expr as a function of C, f(C)   
+    
+    """
+    
+    xmax, xmin, ymax, ymin = float(xmaxi), float(xmini), float(ymaxi), float(ymini)
+    
+    # We start by creating the random numbers: 
+    
+    #xmin, xmax, ymin, ymax = int(xmini), int(xmaxi), int(ymini), int(ymaxi)    
+    
+    
+    r = np.random
+    r.seed(42)
+    
+    # We set the N_try to zero, which we loop over: 
+    N_try = 0
+    
+    # We create an empty array for which we add the accepted numbers: 
+    
+    x_accepted = np.zeros(N_points)
+
+    for i in range(N_points):
+    
+        while True: #While true loops means run until break:
+        
+            # Count the number of tries, to get efficiency/integral
+            N_try += 1                    
+        
+            # Range that f(x) is defined/wanted in:
+            x_test = r.uniform(xmin, xmax)  
+        
+            # Upper bound for function values:
+            y_test = r.uniform(ymin, ymax)
+        
+            if (y_test < expr(x_test)) :
+                
+                break
+            
+        x_accepted[i] = x_test
+        
+    # Efficiency
+    eff = N_points / N_try  
+
+    # Error on efficiency (binomial!)
+    eff_error = np.sqrt(eff * (1-eff) / N_try) 
+
+    # Integral
+    integral =  eff * (xmax-xmin) * (ymax-ymin)
+
+    # Error on integral
+    integral_err = eff_error * (xmax-xmin) * (ymax-ymin) 
+    
+    
+    if plot : 
+        
+        # We need to scale the expression to fit to the number of points: 
+        k = (xmax - xmin) / N_bins
+        N = N_points * k
+
+        # We plot over a simple linspace, thereby the function is not fitted
+        x_axis = np.linspace(xmin, xmax, 1000)
+        
+        fig, ax = plt.subplots(figsize=(12, 10))
+        
+        # We plot the histrogram, and extract the values:  
+        hist = ax.hist(x_accepted, bins = N_bins, range=(xmin, xmax), label='Histogram', color='r', alpha=0.2)
+        
+        y, bin_edges, _ = hist  
+        x = 0.5*(bin_edges[1:] + bin_edges[:-1])
+        sy = np.sqrt(y)            
+    
+        ax.errorbar(x, y, yerr=sy, fmt='ko', ecolor='k', elinewidth=1, capsize=1, capthick=1, label='Measurements')
+        ax.hist(x_accepted, bins = N_bins, range=(xmin, xmax), histtype='step',   color='r', alpha=1)
+        ax.set(xlabel="Generated numbers", ylabel="Frequency", xlim=(xmin-0.1, xmax+0.1));
+        ax.plot(x_axis, N * expr(x_axis) , 'k-', label='Function (not fitted)', linewidth=2)
+
+        # Define figure text
+        d = {'Entries': len(x_accepted),
+             'Mean': x_accepted.mean(),
+             'Std':  x_accepted.std(ddof=1),
+            }
+
+        # Plot figure text
+        text = nice_string_output(d, extra_spacing=2, decimals=3)
+        add_text_to_ax(0.05, 0.75, text, ax, fontsize=16)
+
+        # Add legend
+        ax.legend(loc='best')
+        fig.tight_layout()
+
+        """
+        OUTPUT:
+        Efficiency
+        Error Efficiency
+        
+        Value under integral
+        Error integral
+        """
+    return x_accepted, [eff, eff_error], [integral, integral_err]
 
 
 
