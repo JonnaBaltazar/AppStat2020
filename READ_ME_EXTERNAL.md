@@ -1,4 +1,5 @@
-The Functions in external are
+The Functions in external are:
+------------------------------------------------------------------
 
 lprint(*args, **kwargs)
 ------------------------------------------------------
