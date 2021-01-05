@@ -7,6 +7,20 @@ Created on Wed Dec 30 22:22:28 2020
 
 """
 
+import numpy as np                                    
+import matplotlib.pyplot as plt
+
+import seaborn as sns                                  
+from iminuit import Minuit                             
+import sys                                             
+from scipy import stats, optimize
+from scipy.optimize import minimize
+
+from sympy import * 
+from sympy import sympify
+
+from ExternalFunctions import *
+
 def weighted_avg(val, err, plot=False, title=None):
     """
     INPUT:
