@@ -21,6 +21,7 @@ from sympy import sympify
 
 from ExternalFunctions import *
 
+from IPython.core import display
 from IPython.core.display import Latex
 def lprint(*args,**kwargs):
     """Pretty print arguments as LaTeX using IPython display system 
