@@ -87,3 +87,6 @@ Finds the normalising constant C for a function that we want to create monte car
 find_invF(fx_expr_no_C, C_val=None, xmin=-oo, all_sol = False )
 ---------------------------------------------------------------------------------------------------
 Finds the inverse function to a function f(x) we want to create our simulated monte carlo data from. This is for the transformation method.
+
+Acc_Rej(val, err, plot=False, title=None)
+---------------------------------------------------------------------------------------------------
