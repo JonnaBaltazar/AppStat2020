@@ -456,6 +456,7 @@ def calc_ROC(hist1, hist2):
     else:
         AssertionError("Signal and Background histograms have different bins and ranges")
 
+
 def plot_ROC(FPR, TPR, labels=None, colors=None, figsize=(8,6), ax=None):
 
     if ax is None:
@@ -476,8 +477,8 @@ def plot_ROC(FPR, TPR, labels=None, colors=None, figsize=(8,6), ax=None):
     ax.plot([0,1], [0,1], 'k--')
     if labels is not None:
         ax.legend()
-    ax.set(xlabel='False Positive Rate (Background Efficiency)', ylabel='True Positive Rate (Signal Efficiency)', xlim=(0, 1), ylim=(0, 1))
-
+    ax.set(xlabel='False Positive Rate (Background Efficiency)', ylabel='True Positive Rate (Signal Efficiency)', 
+           xlim=(-0.02, 1.02), ylim=(-0.02, 1.02))
     return ax
 
 # Defining a function that returns random correlated numbers: 
