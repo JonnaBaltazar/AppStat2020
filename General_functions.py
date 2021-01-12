@@ -1040,9 +1040,7 @@ def get_corr(x_data, y_data):
     
     return rho_xy
 
-
-
-def error_rates(species_A, species_B, cut, N_bins = 50, plot=True, alp_coord=(0.1, 0.52), bet_coord=(0.1, 0.52)):
+def error_rates(species_A, species_B, cut, N_bins = 50, plot=True, alp_coord=(0.1, 0.52), bet_coord=(0.1, 0.52), labelA = 'Species A', labelB='Species B'):
     """
     INPUT:
     species_A : 1d arraylike containing data for one variable of species A. 
@@ -1076,8 +1074,8 @@ def error_rates(species_A, species_B, cut, N_bins = 50, plot=True, alp_coord=(0.
         rang = ( np.min(np.concatenate((species_A, species_B))), np.max( np.concatenate((species_A, species_B))) )
         
         # Type I errors (alpha)---------------------------------------------------------------------------
-        countA, _, _ = ax[0].hist(species_A, bins=N_bins, range=rang, histtype='step', color='red', linewidth=2, label='Species A')
-        countB, _, _ = ax[0].hist(species_B, bins=N_bins, range=rang, histtype='step', color='blue', linewidth=2, label='Species B')
+        countA, _, _ = ax[0].hist(species_A, bins=N_bins, range=rang, histtype='step', color='red', linewidth=2, label=labelA)
+        countB, _, _ = ax[0].hist(species_B, bins=N_bins, range=rang, histtype='step', color='blue', linewidth=2, label=labelB)
 
         ax[0].vlines(cut, 0, np.max((countA, countB))+10, color='k', linestyle='dashed', label='Cut=9$\mu$m')
 
@@ -1092,8 +1090,8 @@ def error_rates(species_A, species_B, cut, N_bins = 50, plot=True, alp_coord=(0.
         ax[0].legend()
         
         # Type II errors (beta) ---------------------------------------------------------------------------
-        ax[1].hist(species_A, bins=N_bins, range=rang, histtype='step', color='red', linewidth=2, label='Species A')
-        ax[1].hist(species_B, bins=N_bins, range=rang, histtype='step', color='blue', linewidth=2, label='Species B')
+        ax[1].hist(species_A, bins=N_bins, range=rang, histtype='step', color='red', linewidth=2, label=labelA)
+        ax[1].hist(species_B, bins=N_bins, range=rang, histtype='step', color='blue', linewidth=2, label=labelB)
 
         ax[1].vlines(cut, 0, np.max((countA, countB))+10, color='k', linestyle='dashed', label=f'Cut={cut}')
 
