@@ -685,18 +685,18 @@ def KS_plotter(data, fit_function, args=(), zoom=True):
     # Plot data
     xaxis = np.sort(data)
     yaxis = np.arange(0, len(data), 1)
-    ax[0].plot(xaxis, yaxis, color='red', label='Cumulative Data')
+    ax[0].plot(xaxis, yaxis, color='green', label='Cumulative Data')
     
     # Plot fitted function's cdf
     cdf = getattr(stats.distributions, fit_function).cdf
-    cdf_axis = len(cut3_new_data) * cdf(xaxis, *args)
+    cdf_axis = len(data) * cdf(xaxis, *args)
     ax[0].plot(xaxis, cdf_axis, color='k', label = fit_function + '' + 'CDF')
     ax[0].legend(loc='upper left', prop={"size":14} )
     
     # Plot residuals
     resi = yaxis - cdf_axis
     ax[1].plot(xaxis, resi, color='k', linewidth=0.6, label = 'Residuals (Data $-$ CDF)')
-    ax[1].hlines(0, xaxis[0], xaxis[-1], linestyle='dashed', color='r')
+    ax[1].hlines(0, xaxis[0], xaxis[-1], linestyle='dashed', color='green')
     
     ax[1].set_ylim(min(resi)+0.1*min(resi), max(resi)+0.1*max(resi))
     ax[1].legend(loc='lower right', prop={"size":12})
@@ -706,7 +706,7 @@ def KS_plotter(data, fit_function, args=(), zoom=True):
         
         # Create extra axis
         ax1 = fig.add_axes([0.65, 0.35, 0.2, 0.25]) # add_axes([x0, y0, width, height])
-        ax1.plot(xaxis, yaxis, color='red')
+        ax1.plot(xaxis, yaxis, color='green')
         ax1.plot(xaxis, cdf_axis, color='k')
         
         # Find and supremum
@@ -725,15 +725,17 @@ def KS_plotter(data, fit_function, args=(), zoom=True):
         ax1.set_ylim(ymin, ymax)
         
         # Mark supremum
-        supremum = ConnectionPatch(xyA=(xaxis[index], cdf_axis[index]), xyB=(xaxis[index], yaxis[index]), coordsA=ax1.transData, 
-                           arrowstyle='<->', color='b')
+        supremum = ConnectionPatch(xyA=(xaxis[index], cdf_axis[index]), xyB=(xaxis[index], yaxis[index]), 
+                                   coordsA=ax1.transData, arrowstyle='<->', color='b')
         fig.add_artist(supremum)
 
         ax1.set_title('$D_n = sup_x |F_n(x)-F(x)| $', color='b', fontsize=14)
         
         # Add zoom lines
-        con1 = ConnectionPatch(xyA=(xmin, ymin), coordsA=ax[0].transData, xyB=(xmin, ymin), coordsB=ax1.transData, alpha=0.3)
-        con2 = ConnectionPatch(xyA=(xmax, ymax), coordsA=ax[0].transData, xyB=(xmax,ymax), coordsB=ax1.transData, alpha=0.3)
+        con1 = ConnectionPatch(xyA=(xmin, ymin), coordsA=ax[0].transData, xyB=(xmin, ymin), 
+                               coordsB=ax1.transData, alpha=0.3)
+        con2 = ConnectionPatch(xyA=(xmax, ymax), coordsA=ax[0].transData, xyB=(xmax,ymax), 
+                               coordsB=ax1.transData, alpha=0.3)
 
         sq1 = ConnectionPatch(xyA=(xmin, ymin), xyB=(xmax, ymin), coordsA=ax[0].transData, alpha=0.3)
         sq2 = ConnectionPatch(xyA=(xmin, ymax), xyB=(xmax, ymax), coordsA=ax[0].transData, alpha=0.3)
@@ -748,18 +750,17 @@ def KS_plotter(data, fit_function, args=(), zoom=True):
         fig.add_artist(sq4)
         
     # Perform ks test
-    ks_stat, pval = stats.kstest(cut3_new_data, fit_function, args=args )
+    ks_stat, pval = stats.kstest(data, fit_function, args=args )
 
     # Adding fit results to plot:
     d = {'KS stat':     ks_stat, 'Prob':     pval,}
     
     text = nice_string_output(d, extra_spacing=2, decimals=3)
-    add_text_to_ax(0.02, 0.82, text, ax[0], fontsize=14)
+    add_text_to_ax(0.02, 0.82, text, ax[0], fontsize=18)
 
     plt.show()
     
     return ks_stat, pval
-
 
 
 
@@ -872,7 +873,7 @@ def find_invF(fx_expr_no_C, C_val=None, xmin=-oo, all_sol = False ):
     
     return inverse_function
 
-def monte_c(expr, N_points, N_bins, xmini, xmaxi, ymini, ymaxi, plot = False, title=False):
+def Acc_Rej(expr, N_points, N_bins, xmini, xmaxi, ymini, ymaxi, plot = False, title=False):
     
     """
     expr = defined function 
@@ -985,8 +986,127 @@ def monte_c(expr, N_points, N_bins, xmini, xmaxi, ymini, ymaxi, plot = False, ti
     return x_accepted, [eff, eff_error], [integral, integral_err]
 
 
+# We define a function that returns the relative error: 
+def relative_err(N_point, expr, expr_chi):
+    
+    N_bins = np.int( np.ceil( np.log2(N_point) ) + 1 )
+    xmax_1 = 10
+    xmin_1 = 1
+    
+    x_values, _, _ = Acc_Rej(expr, N_point, N_bins, xmin_1, xmax_1, f(0), f(10), plot= False, title=False)
+    
+    hist_data = np.histogram(x_values, bins=N_bins)
+
+    y, bin_edges = hist_data    
+    x = 0.5*(bin_edges[1:] + bin_edges[:-1])
+    binwidth = bin_edges[1] - bin_edges[0]
+    sy = np.sqrt(y)
+
+    N_new = len(x)
+    xmin, xmax = x[0], x[-1]
+
+    fit = Chi2Regression(expr_chi, x, y, sy=sy, bound=(1, 10))
+    minuit_fit = Minuit(fit, print_level=0, pedantic=False)
+    minuit_fit.migrad();
+    
+    # Defining the relative error: 
+    
+    C1 =  minuit_fit.errors['c_1']/minuit_fit.values['c_1']  
+    
+    C2 =  minuit_fit.errors['c_2']/minuit_fit.values['c_2']  
+    return C1, C2 
+
+
+def get_corr(x_data, y_data):
+    """
+    Calculates the linear correlation of two variables, given a data set with values for each variable
+    
+    INPUT:
+    x_data = 1d arraylike with all x values of a data set where x is a variable
+    y_data = 1d arraylike with all corresponding y values of a data set
+    
+    OUTPUT:
+    rho_xy = the linear correlation
+    """
+    
+    # Covariance matrix
+    cov_mat = np.cov(x_data, y_data)
+    
+    # extract covariance and variance for each variable
+    cov, var_x, var_y = cov_mat[0,1], cov_mat[0,0], cov_mat[1,1]
+    
+    # Find correlation cov / sigma_x * sigma_y. Remember sigma = sqrt(Var)
+    rho_xy = cov / (np.sqrt(var_x)*np.sqrt(var_y))
+    
+    return rho_xy
 
 
 
+def error_rates(species_A, species_B, cut, N_bins = 50, plot=True, alp_coord=(0.1, 0.52), bet_coord=(0.1, 0.52)):
+    """
+    INPUT:
+    species_A : 1d arraylike containing data for one variable of species A. 
+                Species A should be below the cut.
+    species_B : 1d arraylike containing data for same variable of species B. 
+                Species B should be above or equal to the cut.
+    cut = float, defining the cut
+    N_bins = number of bins to plot for each species
+    plot = option to plot or not
+    alp_coord = coordinates to place the axtext alpha on the form (x,y) where 0 < x,y < 1
+    bet_coord = coordinates to place the axtext beta on the form (x,y) where 0 < x,y < 1
+    
+    OUTPUT:
+    alp = type I error rate
+    bet = type II error rate
+    """
 
+    # Separate data acoording to cut
+    A_sup_cut = species_A[species_A >= cut]
+    B_sub_cut = species_B[species_B < cut]
+    
+    # Calculate error rates
+    alp = len(B_sub_cut) / len(species_B)
+    bet = len(A_sup_cut) / len(species_A)
 
+    # Create figure
+    if plot:
+        fig, ax = plt.subplots(ncols=2, figsize=(12,6))
+        
+        # Define range
+        rang = ( np.min(np.concatenate((species_A, species_B))), np.max( np.concatenate((species_A, species_B))) )
+        
+        # Type I errors (alpha)---------------------------------------------------------------------------
+        countA, _, _ = ax[0].hist(species_A, bins=N_bins, range=rang, histtype='step', color='red', linewidth=2, label='Species A')
+        countB, _, _ = ax[0].hist(species_B, bins=N_bins, range=rang, histtype='step', color='blue', linewidth=2, label='Species B')
+
+        ax[0].vlines(cut, 0, np.max((countA, countB))+10, color='k', linestyle='dashed', label='Cut=9$\mu$m')
+
+        # Mark the area under
+        ax[0].hist(B_sub_cut, bins=N_bins, range=rang, histtype='stepfilled', color='blue', alpha=0.5,linewidth=2, label='Beta')
+
+        d1 = {'Alpha':     alp}  
+        text1 = AppStars.nice_string_output(d1, extra_spacing=2, decimals=3)
+        AppStars.add_text_to_ax(*alp_coord, text1, ax[0], fontsize=14, color='blue')
+
+        ax[0].set_title('Type I Error', fontsize=14)
+        ax[0].legend()
+        
+        # Type II errors (beta) ---------------------------------------------------------------------------
+        ax[1].hist(species_A, bins=N_bins, range=rang, histtype='step', color='red', linewidth=2, label='Species A')
+        ax[1].hist(species_B, bins=N_bins, range=rang, histtype='step', color='blue', linewidth=2, label='Species B')
+
+        ax[1].vlines(cut, 0, np.max((countA, countB))+10, color='k', linestyle='dashed', label=f'Cut={cut}')
+
+        # Mark the area under
+        ax[1].hist(A_sup_cut, bins=N_bins, range=rang, histtype='stepfilled', color='red', alpha=0.5, linewidth=2, label='Alpha')
+
+        d2 = {'Beta':     bet}  
+        text2 = AppStars.nice_string_output(d2, extra_spacing=2, decimals=3)
+        AppStars.add_text_to_ax(*bet_coord, text2, ax[1], fontsize=14, color='red')
+    
+        ax[1].set_title('Type II Error', fontsize=14)
+        ax[1].legend()
+
+        plt.show()
+        
+    return alp, bet
